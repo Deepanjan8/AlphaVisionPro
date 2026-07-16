@@ -328,13 +328,14 @@ pub unsafe extern "system" fn Java_com_alpha_vision_pro_gallery_data_nativelib_N
     _class: JClass,
     jpeg_bytes: jbyteArray,
 ) -> jbyteArray {
-    let len = env.get_array_length(&jpeg_bytes).unwrap_or(0);
+    let array = jni::objects::JByteArray::from_raw(jpeg_bytes);
+    let len = env.get_array_length(&array).unwrap_or(0);
     if len <= 0 {
         return jpeg_bytes;
     }
 
     let mut buf = vec![0i8; len as usize];
-    if env.get_byte_array_region(&jpeg_bytes, 0, &mut buf).is_err() {
+    if env.get_byte_array_region(&array, 0, &mut buf).is_err() {
         return jpeg_bytes;
     }
 
