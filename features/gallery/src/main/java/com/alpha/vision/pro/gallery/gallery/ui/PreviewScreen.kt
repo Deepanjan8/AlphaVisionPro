@@ -1,10 +1,11 @@
 package com.alpha.vision.pro.gallery.gallery.ui
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.rememberTransformableState
-import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -22,6 +23,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil3.compose.AsyncImage
@@ -56,6 +59,11 @@ fun PreviewScreen(
             pagerState.scrollToPage(initialPage)
             hasScrolledToInitial = true
         }
+    }
+
+    var isZoomed by remember { mutableStateOf(false) }
+    LaunchedEffect(pagerState.currentPage) {
+        isZoomed = false
     }
 
     var exifTarget by remember { mutableStateOf<com.alpha.vision.pro.gallery.domain.model.MediaItem?>(null) }
@@ -117,13 +125,18 @@ fun PreviewScreen(
                 HorizontalPager(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize(),
-                    pageSpacing = 16.dp
+                    pageSpacing = 16.dp,
+                    userScrollEnabled = !isZoomed
                 ) { pageIndex ->
                     if (pageIndex < state.mediaItems.size) {
                         val item = state.mediaItems[pageIndex]
                         ZoomableImage(
                             uri = item.uri,
                             contentDescription = item.displayName,
+                            isCurrentPage = (pageIndex == pagerState.currentPage),
+                            onZoomChanged = { zoomed ->
+                                isZoomed = zoomed
+                            },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -148,30 +161,85 @@ fun PreviewScreen(
 private fun ZoomableImage(
     uri: String,
     contentDescription: String?,
+    isCurrentPage: Boolean,
+    onZoomChanged: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var scale by remember { mutableStateOf(1f) }
-    var offset by remember { mutableStateOf(Offset.Zero) }
-    val transformState = rememberTransformableState { zoomChange, offsetChange, _ ->
-        scale = (scale * zoomChange).coerceIn(1f, 5f)
-        if (scale > 1f) {
-            offset += offsetChange
-        } else {
-            offset = Offset.Zero
+    val coroutineScope = rememberCoroutineScope()
+    val scale = remember { Animatable(1f) }
+    val offsetX = remember { Animatable(0f) }
+    val offsetY = remember { Animatable(0f) }
+
+    var size by remember { mutableStateOf(IntSize.Zero) }
+
+    // Automatically snap-reset state when page swipe occurs
+    LaunchedEffect(isCurrentPage) {
+        if (!isCurrentPage) {
+            scale.snapTo(1f)
+            offsetX.snapTo(0f)
+            offsetY.snapTo(0f)
+            onZoomChanged(false)
         }
     }
 
     Box(
         modifier = modifier
+            .onSizeChanged { size = it }
             .pointerInput(Unit) {
                 detectTapGestures(
-                    onDoubleTap = {
-                        scale = if (scale > 1f) 1f else 3f
-                        offset = Offset.Zero
+                    onDoubleTap = { tapOffset ->
+                        coroutineScope.launch {
+                            if (scale.value > 1f) {
+                                launch { scale.animateTo(1f, animationSpec = tween(300)) }
+                                launch { offsetX.animateTo(0f, animationSpec = tween(300)) }
+                                launch { offsetY.animateTo(0f, animationSpec = tween(300)) }
+                                onZoomChanged(false)
+                            } else {
+                                val targetScale = 3f
+                                val centerX = size.width / 2f
+                                val centerY = size.height / 2f
+                                val maxOffsetX = (size.width * (targetScale - 1f)) / 2f
+                                val maxOffsetY = (size.height * (targetScale - 1f)) / 2f
+                                val targetOffsetX = ((centerX - tapOffset.x) * (targetScale - 1f)).coerceIn(-maxOffsetX, maxOffsetX)
+                                val targetOffsetY = ((centerY - tapOffset.y) * (targetScale - 1f)).coerceIn(-maxOffsetY, maxOffsetY)
+                                launch { scale.animateTo(targetScale, animationSpec = tween(300)) }
+                                launch { offsetX.animateTo(targetOffsetX, animationSpec = tween(300)) }
+                                launch { offsetY.animateTo(targetOffsetY, animationSpec = tween(300)) }
+                                onZoomChanged(true)
+                            }
+                        }
                     }
                 )
             }
-            .transformable(state = transformState)
+            .pointerInput(Unit) {
+                detectTransformGestures(panZoomLock = false) { _, pan, zoom, _ ->
+                    coroutineScope.launch {
+                        val currentScale = scale.value
+                        val newScale = (currentScale * zoom).coerceIn(1f, 5f)
+
+                        val maxOffsetX = (size.width * (newScale - 1f)) / 2f
+                        val maxOffsetY = (size.height * (newScale - 1f)) / 2f
+
+                        val newOffsetX = if (newScale > 1f) {
+                            (offsetX.value + pan.x).coerceIn(-maxOffsetX, maxOffsetX)
+                        } else {
+                            0f
+                        }
+
+                        val newOffsetY = if (newScale > 1f) {
+                            (offsetY.value + pan.y).coerceIn(-maxOffsetY, maxOffsetY)
+                        } else {
+                            0f
+                        }
+
+                        scale.snapTo(newScale)
+                        offsetX.snapTo(newOffsetX)
+                        offsetY.snapTo(newOffsetY)
+
+                        onZoomChanged(newScale > 1f)
+                    }
+                }
+            }
     ) {
         AsyncImage(
             model = uri,
@@ -180,10 +248,10 @@ private fun ZoomableImage(
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer(
-                    scaleX = scale,
-                    scaleY = scale,
-                    translationX = offset.x,
-                    translationY = offset.y
+                    scaleX = scale.value,
+                    scaleY = scale.value,
+                    translationX = offsetX.value,
+                    translationY = offsetY.value
                 )
         )
     }

@@ -192,6 +192,60 @@ class MediaRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun copyMedia(id: Long, targetBucket: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val entity = dao.getById(id) ?: error("Media not found")
+            val sourceUri = Uri.parse(entity.uri)
+            val values = ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, entity.displayName)
+                put(MediaStore.Images.Media.MIME_TYPE, entity.mimeType)
+                if (Build.VERSION.SDK_INT >= 29) {
+                    put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/$targetBucket")
+                    put(MediaStore.Images.Media.IS_PENDING, 1)
+                }
+            }
+            val newUri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+                ?: error("Failed to insert target MediaStore entry")
+            resolver.openInputStream(sourceUri)?.use { input ->
+                resolver.openOutputStream(newUri)?.use { output ->
+                    input.copyTo(output)
+                }
+            } ?: error("Failed to copy bytes")
+            if (Build.VERSION.SDK_INT >= 29) {
+                values.clear()
+                values.put(MediaStore.Images.Media.IS_PENDING, 0)
+                resolver.update(newUri, values, null, null)
+            }
+            syncFromMediaStore()
+        }
+    }
+
+    override suspend fun moveMedia(id: Long, targetBucket: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val entity = dao.getById(id) ?: error("Media not found")
+            val sourceUri = Uri.parse(entity.uri)
+            copyMedia(id, targetBucket).getOrThrow()
+            resolver.delete(sourceUri, null, null)
+            dao.deleteById(id)
+            syncFromMediaStore()
+        }
+    }
+
+    override suspend fun renameMedia(id: Long, newName: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val entity = dao.getById(id) ?: error("Media not found")
+            val sourceUri = Uri.parse(entity.uri)
+            val ext = entity.displayName.substringAfterLast('.', "")
+            val finalName = if (ext.isNotEmpty() && !newName.endsWith(".$ext")) "$newName.$ext" else newName
+            val values = ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, finalName)
+            }
+            resolver.update(sourceUri, values, null, null)
+            dao.updateDisplayName(id, finalName)
+            syncFromMediaStore()
+        }
+    }
+
     private fun MediaEntity.toDomain() = MediaItem(
         id           = id,
         uri          = uri,

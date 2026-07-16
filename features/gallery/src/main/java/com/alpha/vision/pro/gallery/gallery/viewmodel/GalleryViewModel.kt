@@ -12,6 +12,14 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+enum class SortType {
+    DATE, NAME, SIZE
+}
+
+enum class FilterType {
+    ALL, IMAGES, VIDEOS, GIFS, SCREENSHOTS
+}
+
 data class GalleryUiState(
     val mediaItems    : List<MediaItem> = emptyList(),
     val selectedIds   : Set<Long>       = emptySet(),
@@ -19,7 +27,9 @@ data class GalleryUiState(
     val error         : String?         = null,
     val gridColumns   : Int             = 3,        // pinch-to-zoom target: 2-5
     val isSelectionMode: Boolean        = false,
-    val snackMessage  : String?         = null
+    val snackMessage  : String?         = null,
+    val sortType      : SortType        = SortType.DATE,
+    val filterType    : FilterType      = FilterType.ALL
 )
 
 sealed interface GalleryEvent {
@@ -31,6 +41,8 @@ sealed interface GalleryEvent {
     data class  StripExif(val id: Long)   : GalleryEvent
     data object ClearSelection             : GalleryEvent
     data object DismissSnack               : GalleryEvent
+    data class ChangeSortType(val sortType: SortType) : GalleryEvent
+    data class ChangeFilterType(val filterType: FilterType) : GalleryEvent
 }
 
 @HiltViewModel
@@ -44,13 +56,47 @@ class GalleryViewModel @Inject constructor(
     private val _state = MutableStateFlow(GalleryUiState())
     val state: StateFlow<GalleryUiState> = _state.asStateFlow()
 
+    private val sortType = MutableStateFlow(SortType.DATE)
+    private val filterType = MutableStateFlow(FilterType.ALL)
+
     init {
-        viewModelScope.launch {
-            observeAllMedia()
-                .catch { e -> _state.update { it.copy(error = e.message, isLoading = false) } }
-                .collect { items ->
-                    _state.update { it.copy(mediaItems = items, isLoading = false) }
-                }
+        combine(
+            observeAllMedia().catch { e -> _state.update { it.copy(error = e.message, isLoading = false) } },
+            sortType,
+            filterType
+        ) { items, sort, filter ->
+            val processed = filterAndSort(items, filter, sort)
+            _state.update {
+                it.copy(
+                    mediaItems = processed,
+                    sortType = sort,
+                    filterType = filter,
+                    isLoading = false
+                )
+            }
+        }.launchIn(viewModelScope)
+    }
+
+    private fun filterAndSort(
+        items: List<MediaItem>,
+        filter: FilterType,
+        sort: SortType
+    ): List<MediaItem> {
+        val filtered = when (filter) {
+            FilterType.ALL -> items
+            FilterType.IMAGES -> items.filter { it.mimeType.startsWith("image/") }
+            FilterType.VIDEOS -> items.filter { it.mimeType.startsWith("video/") }
+            FilterType.GIFS -> items.filter { it.mimeType.contains("gif") || it.displayName.endsWith(".gif", ignoreCase = true) }
+            FilterType.SCREENSHOTS -> items.filter {
+                it.displayName.contains("screenshot", ignoreCase = true) ||
+                it.bucketName.contains("screenshot", ignoreCase = true)
+            }
+        }
+
+        return when (sort) {
+            SortType.DATE -> filtered.sortedByDescending { it.dateModified.takeIf { t -> t > 0 } ?: it.dateAdded }
+            SortType.NAME -> filtered.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.displayName })
+            SortType.SIZE -> filtered.sortedByDescending { it.size }
         }
     }
 
@@ -66,6 +112,12 @@ class GalleryViewModel @Inject constructor(
                 it.copy(selectedIds = emptySet(), isSelectionMode = false)
             }
             is GalleryEvent.DismissSnack  -> _state.update { it.copy(snackMessage = null) }
+            is GalleryEvent.ChangeSortType -> {
+                sortType.value = event.sortType
+            }
+            is GalleryEvent.ChangeFilterType -> {
+                filterType.value = event.filterType
+            }
         }
     }
 

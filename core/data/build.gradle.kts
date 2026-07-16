@@ -28,4 +28,5 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.androidx.exifinterface)
+    implementation(libs.androidx.work.runtime)
 }

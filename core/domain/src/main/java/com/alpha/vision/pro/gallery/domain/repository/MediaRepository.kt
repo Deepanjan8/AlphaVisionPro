@@ -12,4 +12,7 @@ interface MediaRepository {
     suspend fun restoreFromTrash(id: Long): Result<Unit>
     suspend fun permanentlyDelete(id: Long): Result<Unit>
     suspend fun sync(): Result<Unit>
+    suspend fun copyMedia(id: Long, targetBucket: String): Result<Unit>
+    suspend fun moveMedia(id: Long, targetBucket: String): Result<Unit>
+    suspend fun renameMedia(id: Long, newName: String): Result<Unit>
 }

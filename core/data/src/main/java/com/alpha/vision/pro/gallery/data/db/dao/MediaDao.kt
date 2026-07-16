@@ -42,4 +42,7 @@ interface MediaDao {
 
     @Query("DELETE FROM media WHERE id IN (:ids)")
     suspend fun deleteIds(ids: List<Long>)
+
+    @Query("UPDATE media SET displayName = :newName WHERE id = :id")
+    suspend fun updateDisplayName(id: Long, newName: String)
 }
