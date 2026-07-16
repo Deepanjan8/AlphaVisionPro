@@ -10,12 +10,6 @@ android {
     defaultConfig {
         minSdk = 26
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
-        externalNativeBuild {
-            cmake { cppFlags += "-std=c++17 -O2 -ffast-math" }
-        }
-    }
-    externalNativeBuild {
-        cmake { path = file("src/main/cpp/CMakeLists.txt") }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21

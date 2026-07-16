@@ -11,13 +11,28 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.alpha.vision.pro.gallery.designsystem.theme.AlphaVisionTheme
 import com.alpha.vision.pro.gallery.navigation.AppNavGraph
 import com.alpha.vision.pro.gallery.settings.viewmodel.SettingsViewModel
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
+
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        // Permission result handled
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+
+        checkAndRequestStoragePermission()
+
         setContent {
             val settingsVm: SettingsViewModel = hiltViewModel()
             val prefs by settingsVm.preferences.collectAsState()
@@ -32,6 +47,18 @@ class MainActivity : FragmentActivity() {
             ) {
                 AppNavGraph()
             }
+        }
+    }
+
+    private fun checkAndRequestStoragePermission() {
+        val permission = if (Build.VERSION.SDK_INT >= 33) {
+            Manifest.permission.READ_MEDIA_IMAGES
+        } else {
+            Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+
+        if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissionLauncher.launch(permission)
         }
     }
 }

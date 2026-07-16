@@ -25,6 +25,20 @@ jobs:
           api-level: 36
           build-tools: 36.0.0
 
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: aarch64-linux-android, x86_64-linux-android
+
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk
+
+      - name: Build Rust Native Library
+        run: |
+          cd core/data/src/main/rust
+          cargo ndk -t arm64-v8a -t x86_64 -o ../jniLibs build --release
+
       - name: Generate fresh Gradle Wrapper
         run: gradle wrapper --gradle-version 9.3.1
 
