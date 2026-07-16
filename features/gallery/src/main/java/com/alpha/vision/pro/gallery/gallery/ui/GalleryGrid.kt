@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.alpha.vision.pro.gallery.designsystem.components.SelectionOverlay
+import com.alpha.vision.pro.gallery.domain.model.ExifData
 import com.alpha.vision.pro.gallery.domain.model.MediaItem
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -36,6 +37,7 @@ fun GalleryGrid(
     onItemLongPress: (Long) -> Unit,
     onPinchZoom    : (Float) -> Unit,
     onStripExif    : (Long) -> Unit,
+    exifDataLoader : suspend (Long) -> ExifData?,
     modifier       : Modifier = Modifier,
     onHeaderContent: (LazyGridScope.() -> Unit)? = null
 ) {
@@ -224,9 +226,10 @@ fun GalleryGrid(
 
     exifTarget?.let { item ->
         ExifBottomSheet(
-            item        = item,
-            onDismiss   = { exifTarget = null },
-            onStripExif = {
+            item           = item,
+            exifDataLoader = exifDataLoader,
+            onDismiss      = { exifTarget = null },
+            onStripExif    = {
                 onStripExif(item.id)
                 exifTarget = null
             }

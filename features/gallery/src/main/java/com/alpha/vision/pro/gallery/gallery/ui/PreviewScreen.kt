@@ -148,6 +148,7 @@ fun PreviewScreen(
     exifTarget?.let { item ->
         ExifBottomSheet(
             item = item,
+            exifDataLoader = { id -> viewModel.getExifMetadata(id) },
             onDismiss = { exifTarget = null },
             onStripExif = {
                 viewModel.onEvent(GalleryEvent.StripExif(item.id))

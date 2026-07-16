@@ -7,6 +7,8 @@ import com.alpha.vision.pro.gallery.domain.usecase.DeleteMediaUseCase
 import com.alpha.vision.pro.gallery.domain.usecase.MoveToVaultUseCase
 import com.alpha.vision.pro.gallery.domain.usecase.ObserveAllMediaUseCase
 import com.alpha.vision.pro.gallery.domain.usecase.StripExifUseCase
+import com.alpha.vision.pro.gallery.domain.usecase.GetExifMetadataUseCase
+import com.alpha.vision.pro.gallery.domain.model.ExifData
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -52,11 +54,16 @@ class GalleryViewModel @Inject constructor(
     private val observeAllMedia : ObserveAllMediaUseCase,
     private val deleteMedia     : DeleteMediaUseCase,
     private val moveToVault     : MoveToVaultUseCase,
-    private val stripExif       : StripExifUseCase
+    private val stripExif       : StripExifUseCase,
+    private val getExifMetadataUseCase: GetExifMetadataUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(GalleryUiState())
     val state: StateFlow<GalleryUiState> = _state.asStateFlow()
+
+    suspend fun getExifMetadata(id: Long): ExifData? {
+        return getExifMetadataUseCase(id).getOrNull()
+    }
 
     private val sortType = MutableStateFlow(SortType.DATE)
     private val filterType = MutableStateFlow(FilterType.ALL)

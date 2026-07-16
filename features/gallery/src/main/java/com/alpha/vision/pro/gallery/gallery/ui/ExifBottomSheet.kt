@@ -9,49 +9,46 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import android.net.Uri
-import com.alpha.vision.pro.gallery.data.nativelib.NativeImageProcessor
-import org.json.JSONObject
 import com.alpha.vision.pro.gallery.designsystem.components.DragHandle
 import com.alpha.vision.pro.gallery.designsystem.components.ExifChip
+import com.alpha.vision.pro.gallery.domain.model.ExifData
 import com.alpha.vision.pro.gallery.domain.model.MediaItem
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExifBottomSheet(
-    item       : MediaItem,
-    onDismiss  : () -> Unit,
-    onStripExif: () -> Unit
+    item           : MediaItem,
+    exifDataLoader : suspend (Long) -> ExifData?,
+    onDismiss      : () -> Unit,
+    onStripExif    : () -> Unit
 ) {
-    val context = LocalContext.current
-    val exifMap = remember(item.uri) {
+    var exifData by remember { mutableStateOf<ExifData?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(item.id) {
+        isLoading = true
+        exifData = exifDataLoader(item.id)
+        isLoading = false
+    }
+
+    val exifMap = remember(exifData) {
         buildMap {
-            try {
-                val uri = Uri.parse(item.uri)
-                context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    val bytes = inputStream.readBytes()
-                    val processor = NativeImageProcessor()
-                    val jsonStr = processor.getExifMetadata(item.uri, bytes)
-                    if (jsonStr != null) {
-                        val json = JSONObject(jsonStr)
-                        if (!json.isNull("make")) put("Make", json.getString("make"))
-                        if (!json.isNull("model")) put("Model", json.getString("model"))
-                        if (!json.isNull("focalLength")) put("Focal Length", json.getString("focalLength"))
-                        if (!json.isNull("aperture")) put("Aperture", "f/${json.getString("aperture")}")
-                        if (!json.isNull("shutterSpeed")) put("Shutter", json.getString("shutterSpeed"))
-                        if (!json.isNull("iso")) put("ISO", json.getString("iso"))
-                        if (!json.isNull("dateTaken")) put("Date", json.getString("dateTaken"))
-                        
-                        if (!json.isNull("gpsLatitude") && !json.isNull("gpsLongitude")) {
-                            put("Lat", "%.5f".format(json.getDouble("gpsLatitude")))
-                            put("Lon", "%.5f".format(json.getDouble("gpsLongitude")))
-                        }
-                    }
-                }
-            } catch (_: Exception) {}
+            val ex = exifData ?: return@buildMap
+            ex.make?.let { put("Make", it) }
+            ex.model?.let { put("Model", it) }
+            ex.focalLength?.let { put("Focal Length", it) }
+            ex.aperture?.let { put("Aperture", "f/$it") }
+            ex.shutterSpeed?.let { put("Shutter", it) }
+            ex.iso?.let { put("ISO", it) }
+            ex.dateTaken?.let { put("Date", it) }
+            if (ex.gpsLatitude != null && ex.gpsLongitude != null) {
+                put("Lat", "%.5f".format(ex.gpsLatitude))
+                put("Lon", "%.5f".format(ex.gpsLongitude))
+            }
         }
     }
 
@@ -68,7 +65,9 @@ fun ExifBottomSheet(
             Text("EXIF Metadata", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(12.dp))
 
-            if (exifMap.isEmpty()) {
+            if (isLoading) {
+                CircularProgressIndicator(modifier = Modifier.padding(16.dp))
+            } else if (exifMap.isEmpty()) {
                 Text("No EXIF data available",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)

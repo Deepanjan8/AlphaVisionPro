@@ -259,4 +259,31 @@ class MediaRepositoryImpl @Inject constructor(
         bucketName   = bucketName,
         isVaulted    = isVaulted
     )
+
+    override suspend fun getExifMetadata(id: Long): Result<ExifData?> = withContext(Dispatchers.IO) {
+        runCatching {
+            val entity = dao.getById(id) ?: return@runCatching null
+            val uri = Uri.parse(entity.uri)
+            resolver.openInputStream(uri)?.use { inputStream ->
+                val bytes = inputStream.readBytes()
+                val processor = com.alpha.vision.pro.gallery.data.nativelib.NativeImageProcessor()
+                val jsonStr = processor.getExifMetadata(entity.uri, bytes)
+                if (jsonStr != null) {
+                    val json = org.json.JSONObject(jsonStr)
+                    ExifData(
+                        make = if (json.isNull("make")) null else json.getString("make"),
+                        model = if (json.isNull("model")) null else json.getString("model"),
+                        focalLength = if (json.isNull("focalLength")) null else json.getString("focalLength"),
+                        aperture = if (json.isNull("aperture")) null else json.getString("aperture"),
+                        shutterSpeed = if (json.isNull("shutterSpeed")) null else json.getString("shutterSpeed"),
+                        iso = if (json.isNull("iso")) null else json.getString("iso"),
+                        gpsLatitude = if (json.isNull("gpsLatitude")) null else json.getDouble("gpsLatitude"),
+                        gpsLongitude = if (json.isNull("gpsLongitude")) null else json.getDouble("gpsLongitude"),
+                        dateTaken = if (json.isNull("dateTaken")) null else json.getString("dateTaken"),
+                        orientation = json.optInt("orientation", 0)
+                    )
+                } else null
+            }
+        }
+    }
 }

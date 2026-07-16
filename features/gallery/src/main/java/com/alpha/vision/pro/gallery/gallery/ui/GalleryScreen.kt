@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import com.alpha.vision.pro.gallery.designsystem.components.AlphaTopBar
+import com.alpha.vision.pro.gallery.domain.model.ExifData
 import com.alpha.vision.pro.gallery.domain.model.MediaItem
 import com.alpha.vision.pro.gallery.gallery.viewmodel.FilterType
 import com.alpha.vision.pro.gallery.gallery.viewmodel.GalleryEvent
@@ -149,7 +150,8 @@ fun GalleryScreen(
                         onPinchZoom = { scale -> viewModel.onEvent(GalleryEvent.PinchZoom(scale)) },
                         onStripExif = { id -> viewModel.onEvent(GalleryEvent.StripExif(id)) },
                         onFilterChange = { viewModel.onEvent(GalleryEvent.ChangeFilterType(it)) },
-                        onSortChange = { viewModel.onEvent(GalleryEvent.ChangeSortType(it)) }
+                        onSortChange = { viewModel.onEvent(GalleryEvent.ChangeSortType(it)) },
+                        exifDataLoader = { id -> viewModel.getExifMetadata(id) }
                     )
                 }
                 GalleryTab.SEARCH -> {
@@ -280,7 +282,8 @@ private fun PhotosTabContent(
     onPinchZoom: (Float) -> Unit,
     onStripExif: (Long) -> Unit,
     onFilterChange: (FilterType) -> Unit,
-    onSortChange: (SortType) -> Unit
+    onSortChange: (SortType) -> Unit,
+    exifDataLoader: suspend (Long) -> ExifData?
 ) {
     if (state.isLoading) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -318,6 +321,7 @@ private fun PhotosTabContent(
                 onItemLongPress = onItemLongPress,
                 onPinchZoom = onPinchZoom,
                 onStripExif = onStripExif,
+                exifDataLoader = exifDataLoader,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),

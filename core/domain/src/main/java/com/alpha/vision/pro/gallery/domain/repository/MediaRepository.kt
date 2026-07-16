@@ -15,4 +15,5 @@ interface MediaRepository {
     suspend fun copyMedia(id: Long, targetBucket: String): Result<Unit>
     suspend fun moveMedia(id: Long, targetBucket: String): Result<Unit>
     suspend fun renameMedia(id: Long, newName: String): Result<Unit>
+    suspend fun getExifMetadata(id: Long): Result<com.alpha.vision.pro.gallery.domain.model.ExifData?>
 }
