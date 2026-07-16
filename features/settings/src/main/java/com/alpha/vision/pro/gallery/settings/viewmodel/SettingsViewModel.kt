@@ -2,7 +2,7 @@ package com.alpha.vision.pro.gallery.settings.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.alpha.vision.pro.gallery.designsystem.theme.ColorSpace
+import com.alpha.vision.pro.gallery.domain.model.ColorSpace
 import com.alpha.vision.pro.gallery.domain.model.AppPreferences
 import com.alpha.vision.pro.gallery.settings.datastore.DataStorePrefs
 import dagger.hilt.android.lifecycle.HiltViewModel

@@ -15,7 +15,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.alpha.vision.pro.gallery.designsystem.components.AlphaTopBar
-import com.alpha.vision.pro.gallery.designsystem.theme.ColorSpace
+import com.alpha.vision.pro.gallery.domain.model.ColorSpace
 import com.alpha.vision.pro.gallery.settings.viewmodel.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)

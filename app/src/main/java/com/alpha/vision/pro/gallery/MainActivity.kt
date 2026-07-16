@@ -21,10 +21,14 @@ class MainActivity : FragmentActivity() {
         setContent {
             val settingsVm: SettingsViewModel = hiltViewModel()
             val prefs by settingsVm.preferences.collectAsState()
+            val themeColorSpace = when (prefs.colorSpace) {
+                com.alpha.vision.pro.gallery.domain.model.ColorSpace.SRGB -> com.alpha.vision.pro.gallery.designsystem.theme.ColorSpace.SRGB
+                com.alpha.vision.pro.gallery.domain.model.ColorSpace.DISPLAY_P3 -> com.alpha.vision.pro.gallery.designsystem.theme.ColorSpace.DISPLAY_P3
+            }
             AlphaVisionTheme(
                 darkTheme    = prefs.darkMode ?: isSystemInDarkTheme(),
                 dynamicColor = prefs.dynamicColor,
-                colorSpace   = prefs.colorSpace
+                colorSpace   = themeColorSpace
             ) {
                 AppNavGraph()
             }
