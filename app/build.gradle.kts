@@ -70,6 +70,7 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.coil.compose)
     implementation(project(":core:designsystem"))
     implementation(project(":core:domain"))
     implementation(project(":core:data"))
