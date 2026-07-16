@@ -102,6 +102,7 @@ fun GalleryScreen(
         }
     }
 }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
