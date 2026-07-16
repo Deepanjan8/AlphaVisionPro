@@ -259,11 +259,7 @@ pub unsafe extern "system" fn Java_com_alpha_vision_pro_gallery_data_nativelib_N
         Ok(c) => c,
         Err(_) => return std::ptr::null_mut(),
     };
-    let argb_fid = match env.get_static_field_id(&config_class, "ARGB_8888", "Landroid/graphics/Bitmap$Config;") {
-        Ok(id) => id,
-        Err(_) => return std::ptr::null_mut(),
-    };
-    let argb_config = match env.get_static_field(&config_class, argb_fid, "Landroid/graphics/Bitmap$Config;") {
+    let argb_config = match env.get_static_field(&config_class, "ARGB_8888", "Landroid/graphics/Bitmap$Config;") {
         Ok(val) => match val.l() {
             Ok(obj) => obj,
             Err(_) => return std::ptr::null_mut(),
@@ -271,23 +267,14 @@ pub unsafe extern "system" fn Java_com_alpha_vision_pro_gallery_data_nativelib_N
         Err(_) => return std::ptr::null_mut(),
     };
 
-    let create_mid = match env.get_static_method_id(
+    let dst_bitmap = match env.call_static_method(
         &bmp_class,
         "createBitmap",
         "(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;",
-    ) {
-        Ok(id) => id,
-        Err(_) => return std::ptr::null_mut(),
-    };
-
-    let dst_bitmap = match env.call_static_method_unchecked(
-        &bmp_class,
-        create_mid,
-        jni::signature::ReturnType::Object,
         &[
-            JValue::Int(info.width as i32).to_jni(),
-            JValue::Int(info.height as i32).to_jni(),
-            JValue::Object(&argb_config).to_jni(),
+            JValue::Int(info.width as i32),
+            JValue::Int(info.height as i32),
+            JValue::Object(&argb_config),
         ],
     ) {
         Ok(val) => match val.l() {
