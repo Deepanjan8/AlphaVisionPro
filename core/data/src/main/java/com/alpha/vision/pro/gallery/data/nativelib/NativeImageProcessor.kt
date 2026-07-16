@@ -52,4 +52,15 @@ class NativeImageProcessor {
      * Sets the native buffer pool size (in MB). Affects memory vs speed trade-off.
      */
     external fun setBufferPoolSizeMb(sizeMb: Int)
+
+    /**
+     * Extracts EXIF metadata from raw image byte array.
+     * Uses native EXIF parser and caches the parsed result in the Rust caching index.
+     */
+    external fun getExifMetadata(key: String, jpegBytes: ByteArray): String?
+
+    /**
+     * Clears the cached EXIF metadata for the given key, or all keys if null.
+     */
+    external fun clearExifCache(key: String?)
 }

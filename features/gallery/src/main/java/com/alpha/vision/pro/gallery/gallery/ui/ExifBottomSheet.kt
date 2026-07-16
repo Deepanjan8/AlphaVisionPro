@@ -12,7 +12,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import android.net.Uri
-import androidx.exifinterface.media.ExifInterface
+import com.alpha.vision.pro.gallery.data.nativelib.NativeImageProcessor
+import org.json.JSONObject
 import com.alpha.vision.pro.gallery.designsystem.components.DragHandle
 import com.alpha.vision.pro.gallery.designsystem.components.ExifChip
 import com.alpha.vision.pro.gallery.domain.model.MediaItem
@@ -26,25 +27,28 @@ fun ExifBottomSheet(
     onStripExif: () -> Unit
 ) {
     val context = LocalContext.current
-    // Read EXIF from URI
     val exifMap = remember(item.uri) {
         buildMap {
             try {
                 val uri = Uri.parse(item.uri)
                 context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    val ex = ExifInterface(inputStream)
-                    ex.getAttribute(ExifInterface.TAG_MAKE)?.let { put("Make", it) }
-                    ex.getAttribute(ExifInterface.TAG_MODEL)?.let { put("Model", it) }
-                    ex.getAttribute(ExifInterface.TAG_FOCAL_LENGTH)?.let { put("Focal Length", it) }
-                    ex.getAttribute(ExifInterface.TAG_APERTURE_VALUE)?.let { put("Aperture", it) }
-                    ex.getAttribute(ExifInterface.TAG_SHUTTER_SPEED_VALUE)?.let { put("Shutter", it) }
-                    ex.getAttribute(ExifInterface.TAG_ISO_SPEED_RATINGS)?.let { put("ISO", it) }
-                    ex.getAttribute(ExifInterface.TAG_DATETIME)?.let { put("Date", it) }
-                    
-                    val latLong = FloatArray(2)
-                    if (ex.getLatLong(latLong)) {
-                        put("Lat", "%.5f".format(latLong[0]))
-                        put("Lon", "%.5f".format(latLong[1]))
+                    val bytes = inputStream.readBytes()
+                    val processor = NativeImageProcessor()
+                    val jsonStr = processor.getExifMetadata(item.uri, bytes)
+                    if (jsonStr != null) {
+                        val json = JSONObject(jsonStr)
+                        if (!json.isNull("make")) put("Make", json.getString("make"))
+                        if (!json.isNull("model")) put("Model", json.getString("model"))
+                        if (!json.isNull("focalLength")) put("Focal Length", json.getString("focalLength"))
+                        if (!json.isNull("aperture")) put("Aperture", "f/${json.getString("aperture")}")
+                        if (!json.isNull("shutterSpeed")) put("Shutter", json.getString("shutterSpeed"))
+                        if (!json.isNull("iso")) put("ISO", json.getString("iso"))
+                        if (!json.isNull("dateTaken")) put("Date", json.getString("dateTaken"))
+                        
+                        if (!json.isNull("gpsLatitude") && !json.isNull("gpsLongitude")) {
+                            put("Lat", "%.5f".format(json.getDouble("gpsLatitude")))
+                            put("Lon", "%.5f".format(json.getDouble("gpsLongitude")))
+                        }
                     }
                 }
             } catch (_: Exception) {}

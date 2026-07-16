@@ -25,11 +25,12 @@ data class GalleryUiState(
     val selectedIds   : Set<Long>       = emptySet(),
     val isLoading     : Boolean         = true,
     val error         : String?         = null,
-    val gridColumns   : Int             = 3,        // pinch-to-zoom target: 2-5
+    val gridColumns   : Int             = 3,        // pinch-to-zoom target: 1-3
     val isSelectionMode: Boolean        = false,
     val snackMessage  : String?         = null,
     val sortType      : SortType        = SortType.DATE,
-    val filterType    : FilterType      = FilterType.ALL
+    val filterType    : FilterType      = FilterType.ALL,
+    val searchQuery   : String          = ""
 )
 
 sealed interface GalleryEvent {
@@ -43,6 +44,7 @@ sealed interface GalleryEvent {
     data object DismissSnack               : GalleryEvent
     data class ChangeSortType(val sortType: SortType) : GalleryEvent
     data class ChangeFilterType(val filterType: FilterType) : GalleryEvent
+    data class SearchQueryChanged(val query: String) : GalleryEvent
 }
 
 @HiltViewModel
@@ -58,19 +60,22 @@ class GalleryViewModel @Inject constructor(
 
     private val sortType = MutableStateFlow(SortType.DATE)
     private val filterType = MutableStateFlow(FilterType.ALL)
+    private val searchQuery = MutableStateFlow("")
 
     init {
         combine(
             observeAllMedia().catch { e -> _state.update { it.copy(error = e.message, isLoading = false) } },
             sortType,
-            filterType
-        ) { items, sort, filter ->
-            val processed = filterAndSort(items, filter, sort)
+            filterType,
+            searchQuery
+        ) { items, sort, filter, query ->
+            val processed = filterAndSort(items, filter, sort, query)
             _state.update {
                 it.copy(
                     mediaItems = processed,
                     sortType = sort,
                     filterType = filter,
+                    searchQuery = query,
                     isLoading = false
                 )
             }
@@ -80,7 +85,8 @@ class GalleryViewModel @Inject constructor(
     private fun filterAndSort(
         items: List<MediaItem>,
         filter: FilterType,
-        sort: SortType
+        sort: SortType,
+        query: String
     ): List<MediaItem> {
         val filtered = when (filter) {
             FilterType.ALL -> items
@@ -93,10 +99,19 @@ class GalleryViewModel @Inject constructor(
             }
         }
 
+        val searched = if (query.isBlank()) {
+            filtered
+        } else {
+            filtered.filter {
+                it.displayName.contains(query, ignoreCase = true) ||
+                it.bucketName.contains(query, ignoreCase = true)
+            }
+        }
+
         return when (sort) {
-            SortType.DATE -> filtered.sortedByDescending { it.dateModified.takeIf { t -> t > 0 } ?: it.dateAdded }
-            SortType.NAME -> filtered.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.displayName })
-            SortType.SIZE -> filtered.sortedByDescending { it.size }
+            SortType.DATE -> searched.sortedByDescending { it.dateModified.takeIf { t -> t > 0 } ?: it.dateAdded }
+            SortType.NAME -> searched.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.displayName })
+            SortType.SIZE -> searched.sortedByDescending { it.size }
         }
     }
 
@@ -117,6 +132,9 @@ class GalleryViewModel @Inject constructor(
             }
             is GalleryEvent.ChangeFilterType -> {
                 filterType.value = event.filterType
+            }
+            is GalleryEvent.SearchQueryChanged -> {
+                searchQuery.value = event.query
             }
         }
     }
@@ -141,8 +159,8 @@ class GalleryViewModel @Inject constructor(
     private fun handlePinch(scale: Float) {
         val current = _state.value.gridColumns
         val newCols = when {
-            scale < 0.85f -> (current + 1).coerceAtMost(5)
-            scale > 1.15f -> (current - 1).coerceAtLeast(2)
+            scale < 0.85f -> (current + 1).coerceAtMost(3)
+            scale > 1.15f -> (current - 1).coerceAtLeast(1)
             else          -> current
         }
         if (newCols != current) _state.update { it.copy(gridColumns = newCols) }
