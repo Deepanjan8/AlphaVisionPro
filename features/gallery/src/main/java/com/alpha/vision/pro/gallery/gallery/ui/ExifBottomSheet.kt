@@ -9,6 +9,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import android.net.Uri
 import androidx.exifinterface.media.ExifInterface
 import com.alpha.vision.pro.gallery.designsystem.components.DragHandle
 import com.alpha.vision.pro.gallery.designsystem.components.ExifChip
@@ -22,23 +25,27 @@ fun ExifBottomSheet(
     onDismiss  : () -> Unit,
     onStripExif: () -> Unit
 ) {
-    // Read EXIF from URI path
+    val context = LocalContext.current
+    // Read EXIF from URI
     val exifMap = remember(item.uri) {
         buildMap {
             try {
-                val path = item.uri.removePrefix("content://")
-                    .let { it } // real apps resolve via ContentResolver
-                // We display from the domain model's exifData if available
-                item.exifData?.let { ex ->
-                    ex.make?.let      { put("Make", it) }
-                    ex.model?.let     { put("Model", it) }
-                    ex.focalLength?.let { put("Focal Length", it) }
-                    ex.aperture?.let  { put("Aperture", it) }
-                    ex.shutterSpeed?.let { put("Shutter", it) }
-                    ex.iso?.let       { put("ISO", it) }
-                    ex.dateTaken?.let { put("Date", it) }
-                    ex.gpsLatitude?.let  { put("Lat", "%.5f".format(it)) }
-                    ex.gpsLongitude?.let { put("Lon", "%.5f".format(it)) }
+                val uri = Uri.parse(item.uri)
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    val ex = ExifInterface(inputStream)
+                    ex.getAttribute(ExifInterface.TAG_MAKE)?.let { put("Make", it) }
+                    ex.getAttribute(ExifInterface.TAG_MODEL)?.let { put("Model", it) }
+                    ex.getAttribute(ExifInterface.TAG_FOCAL_LENGTH)?.let { put("Focal Length", it) }
+                    ex.getAttribute(ExifInterface.TAG_APERTURE_VALUE)?.let { put("Aperture", it) }
+                    ex.getAttribute(ExifInterface.TAG_SHUTTER_SPEED_VALUE)?.let { put("Shutter", it) }
+                    ex.getAttribute(ExifInterface.TAG_ISO_SPEED_RATINGS)?.let { put("ISO", it) }
+                    ex.getAttribute(ExifInterface.TAG_DATETIME)?.let { put("Date", it) }
+                    
+                    val latLong = FloatArray(2)
+                    if (ex.getLatLong(latLong)) {
+                        put("Lat", "%.5f".format(latLong[0]))
+                        put("Lon", "%.5f".format(latLong[1]))
+                    }
                 }
             } catch (_: Exception) {}
         }
@@ -86,7 +93,3 @@ fun ExifBottomSheet(
         }
     }
 }
-
-@Composable
-private fun <T> remember(vararg keys: Any?, calculation: () -> T) =
-    androidx.compose.runtime.remember(*keys, calculation = calculation)

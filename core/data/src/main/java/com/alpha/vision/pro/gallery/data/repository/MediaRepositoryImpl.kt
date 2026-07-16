@@ -43,9 +43,6 @@ class MediaRepositoryImpl @Inject constructor(
     override suspend fun deleteMedia(ids: List<Long>): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             ids.forEach { id ->
-                val entity = dao.getById(id) ?: return@forEach
-                val uri = Uri.parse(entity.uri)
-                resolver.delete(uri, null, null)
                 dao.setTrashed(id, true, System.currentTimeMillis())
             }
         }

@@ -37,7 +37,7 @@ static jboolean with_bitmap_info(JNIEnv* env, jobject bmp, Fn fn) {
 // ─── JNI: processImage ───────────────────────────────────────────────────────
 extern "C"
 JNIEXPORT jobject JNICALL
-Java_com_alpha_vision_pro_gallery_data_native_NativeImageProcessor_processImage(
+Java_com_alpha_vision_pro_gallery_data_nativelib_NativeImageProcessor_processImage(
     JNIEnv* env, jobject /*thiz*/,
     jobject srcBitmap,
     jfloat exposure, jfloat contrast, jfloat saturation,
@@ -98,7 +98,7 @@ Java_com_alpha_vision_pro_gallery_data_native_NativeImageProcessor_processImage(
 // ─── JNI: stripExifNative ────────────────────────────────────────────────────
 extern "C"
 JNIEXPORT jbyteArray JNICALL
-Java_com_alpha_vision_pro_gallery_data_native_NativeImageProcessor_stripExifNative(
+Java_com_alpha_vision_pro_gallery_data_nativelib_NativeImageProcessor_stripExifNative(
     JNIEnv* env, jobject /*thiz*/, jbyteArray jpegBytes)
 {
     // For full EXIF strip, we zero-out all APP1 (0xFFE1) markers in JPEG stream.
@@ -133,7 +133,7 @@ Java_com_alpha_vision_pro_gallery_data_native_NativeImageProcessor_stripExifNati
 // ─── JNI: getNativeMemoryUsage ───────────────────────────────────────────────
 extern "C"
 JNIEXPORT jlong JNICALL
-Java_com_alpha_vision_pro_gallery_data_native_NativeImageProcessor_getNativeMemoryUsage(
+Java_com_alpha_vision_pro_gallery_data_nativelib_NativeImageProcessor_getNativeMemoryUsage(
     JNIEnv* /*env*/, jobject /*thiz*/)
 {
     return static_cast<jlong>(g_current_usage);
@@ -142,7 +142,7 @@ Java_com_alpha_vision_pro_gallery_data_native_NativeImageProcessor_getNativeMemo
 // ─── JNI: setBufferPoolSizeMb ────────────────────────────────────────────────
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_alpha_vision_pro_gallery_data_native_NativeImageProcessor_setBufferPoolSizeMb(
+Java_com_alpha_vision_pro_gallery_data_nativelib_NativeImageProcessor_setBufferPoolSizeMb(
     JNIEnv* /*env*/, jobject /*thiz*/, jint sizeMb)
 {
     g_buffer_pool_bytes = static_cast<size_t>(sizeMb) * 1024 * 1024;

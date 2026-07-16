@@ -44,6 +44,7 @@ sealed interface EditorEvent {
 @HiltViewModel
 class EditorViewModel @Inject constructor(
     savedStateHandle  : SavedStateHandle,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context,
     private val getMedia      : GetMediaByIdUseCase,
     private val applyEdit     : ApplyEditParamsUseCase,
     private val saveEdited    : SaveEditedMediaUseCase
@@ -67,8 +68,35 @@ class EditorViewModel @Inject constructor(
 
     private fun loadMedia() = viewModelScope.launch {
         getMedia(mediaId)
-            .onSuccess { media -> _state.update { it.copy(media = media, isLoading = false) } }
+            .onSuccess { media ->
+                _state.update { it.copy(media = media, isLoading = false) }
+                loadSourceBitmap(media.uri)
+            }
             .onFailure { e   -> _state.update { it.copy(error = e.message, isLoading = false) } }
+    }
+
+    private fun loadSourceBitmap(uriString: String) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching {
+                val uri = android.net.Uri.parse(uriString)
+                val bitmap = if (android.os.Build.VERSION.SDK_INT >= 28) {
+                    val source = android.graphics.ImageDecoder.createSource(context.contentResolver, uri)
+                    android.graphics.ImageDecoder.decodeBitmap(source) { decoder, _, _ ->
+                        decoder.allocator = android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE
+                        decoder.isMutableRequired = true
+                    }
+                } else {
+                    context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                        android.graphics.BitmapFactory.decodeStream(inputStream)?.copy(android.graphics.Bitmap.Config.ARGB_8888, true)
+                    } ?: error("Failed to open input stream")
+                }
+                bitmap
+            }.onSuccess { bmp ->
+                onEvent(EditorEvent.SourceLoaded(bmp))
+            }.onFailure { e ->
+                _state.update { it.copy(error = "Failed to load image: ${e.message}") }
+            }
+        }
     }
 
     private fun observeParamsForProcessing() = viewModelScope.launch {
