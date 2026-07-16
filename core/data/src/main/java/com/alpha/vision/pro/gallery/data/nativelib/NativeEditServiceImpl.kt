@@ -14,15 +14,20 @@ import javax.inject.Singleton
  */
 @Singleton
 class NativeEditServiceImpl @Inject constructor(
-    private val processor: NativeImageProcessor
+    private val processor: NativeImageProcessor,
+    private val cacheManager: com.alpha.vision.pro.gallery.data.cache.ImageCacheManager
 ) : NativeEditService {
 
     override suspend fun processImage(
+        key: String,
         source : Bitmap,
         params : EditParams
     ): Result<Bitmap> = withContext(Dispatchers.Default) {
         runCatching {
-            // Ensure ARGB_8888 — C++ engine requires this format
+            val cached = cacheManager.get(key, params)
+            if (cached != null) return@runCatching cached
+
+            // Ensure ARGB_8888 — Rust engine requires this format
             val argbSource = if (source.config == Bitmap.Config.ARGB_8888) source
                              else source.copy(Bitmap.Config.ARGB_8888, false)
             val result = processor.processImage(
@@ -37,6 +42,9 @@ class NativeEditServiceImpl @Inject constructor(
             )
             // Recycle temporary copy if we created one
             if (argbSource !== source) argbSource.recycle()
+            
+            cacheManager.put(key, params, result)
+            
             result
         }
     }

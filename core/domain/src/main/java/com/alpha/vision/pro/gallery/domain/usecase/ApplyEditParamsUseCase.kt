@@ -12,6 +12,6 @@ import javax.inject.Inject
 class ApplyEditParamsUseCase @Inject constructor(
     private val nativeEditService: NativeEditService
 ) {
-    suspend operator fun invoke(source: Bitmap, params: EditParams): Result<Bitmap> =
-        nativeEditService.processImage(source, params)
+    suspend operator fun invoke(key: String, source: Bitmap, params: EditParams): Result<Bitmap> =
+        nativeEditService.processImage(key, source, params)
 }

@@ -105,7 +105,7 @@ class EditorViewModel @Inject constructor(
             .collect { params ->
                 val src = sourceBitmap ?: return@collect
                 _state.update { it.copy(isProcessing = true) }
-                applyEdit(src, params)
+                applyEdit(mediaId.toString(), src, params)
                     .onSuccess { bmp ->
                         _state.update { it.copy(previewBitmap = bmp, isProcessing = false) }
                     }
