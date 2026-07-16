@@ -15,9 +15,12 @@ import com.alpha.vision.pro.gallery.domain.model.MediaItem
 import com.alpha.vision.pro.gallery.domain.repository.EditableMediaRepository
 import com.alpha.vision.pro.gallery.domain.repository.MediaRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import javax.inject.Inject
@@ -30,6 +33,31 @@ class MediaRepositoryImpl @Inject constructor(
 ) : MediaRepository, EditableMediaRepository {
 
     private val resolver: ContentResolver get() = context.contentResolver
+    private val repositoryScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    init {
+        registerContentObserver()
+    }
+
+    private fun registerContentObserver() {
+        val observer = object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean, uri: Uri?) {
+                super.onChange(selfChange, uri)
+                repositoryScope.launch {
+                    runCatching { syncFromMediaStore() }
+                }
+            }
+        }
+        resolver.registerContentObserver(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            true,
+            observer
+        )
+    }
+
+    override suspend fun sync(): Result<Unit> = runCatching {
+        syncFromMediaStore()
+    }
 
     override fun observeAllMedia(): Flow<List<MediaItem>> =
         dao.observeAllMedia().map { list ->
@@ -123,6 +151,7 @@ class MediaRepositoryImpl @Inject constructor(
         ) ?: return@withContext
 
         val entities = mutableListOf<MediaEntity>()
+        val mediaStoreIds = mutableSetOf<Long>()
         cursor.use {
             val idCol       = it.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
             val nameCol     = it.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
@@ -135,6 +164,7 @@ class MediaRepositoryImpl @Inject constructor(
             val bucketCol   = it.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
             while (it.moveToNext()) {
                 val id  = it.getLong(idCol)
+                mediaStoreIds.add(id)
                 val uri = Uri.withAppendedPath(
                     MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id.toString()
                 ).toString()
@@ -153,6 +183,13 @@ class MediaRepositoryImpl @Inject constructor(
             }
         }
         dao.upsertAll(entities)
+
+        // Delete items from database that are no longer in MediaStore (excluding vaulted ones)
+        val localIds = dao.getAllNonVaultedIds()
+        val idsToDelete = localIds.filter { it !in mediaStoreIds }
+        if (idsToDelete.isNotEmpty()) {
+            dao.deleteIds(idsToDelete)
+        }
     }
 
     private fun MediaEntity.toDomain() = MediaItem(

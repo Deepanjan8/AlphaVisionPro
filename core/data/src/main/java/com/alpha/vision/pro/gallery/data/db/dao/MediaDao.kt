@@ -36,4 +36,10 @@ interface MediaDao {
 
     @Query("DELETE FROM media WHERE isTrashed = 1 AND trashedAt < :before")
     suspend fun purgeOldTrash(before: Long)
+
+    @Query("SELECT id FROM media WHERE isVaulted = 0")
+    suspend fun getAllNonVaultedIds(): List<Long>
+
+    @Query("DELETE FROM media WHERE id IN (:ids)")
+    suspend fun deleteIds(ids: List<Long>)
 }

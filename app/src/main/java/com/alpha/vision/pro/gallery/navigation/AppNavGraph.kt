@@ -10,11 +10,15 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.alpha.vision.pro.gallery.editor.ui.EditorScreen
 import com.alpha.vision.pro.gallery.gallery.ui.GalleryScreen
+import com.alpha.vision.pro.gallery.gallery.ui.PreviewScreen
 import com.alpha.vision.pro.gallery.settings.ui.SettingsScreen
 import com.alpha.vision.pro.gallery.vault.ui.VaultScreen
 
 sealed class Screen(val route: String) {
     data object Gallery  : Screen("gallery")
+    data object Preview  : Screen("preview/{mediaId}") {
+        fun createRoute(mediaId: Long) = "preview/$mediaId"
+    }
     data object Editor   : Screen("editor/{mediaId}") {
         fun createRoute(mediaId: Long) = "editor/$mediaId"
     }
@@ -34,9 +38,20 @@ fun AppNavGraph(
     ) {
         composable(Screen.Gallery.route) {
             GalleryScreen(
-                onMediaClick    = { mediaId -> navController.navigate(Screen.Editor.createRoute(mediaId)) },
+                onMediaClick    = { mediaId -> navController.navigate(Screen.Preview.createRoute(mediaId)) },
                 onVaultClick    = { navController.navigate(Screen.Vault.route) },
                 onSettingsClick = { navController.navigate(Screen.Settings.route) }
+            )
+        }
+        composable(
+            route     = Screen.Preview.route,
+            arguments = listOf(navArgument("mediaId") { type = NavType.LongType })
+        ) { backStack ->
+            val mediaId = backStack.arguments?.getLong("mediaId") ?: return@composable
+            PreviewScreen(
+                mediaId = mediaId,
+                onBack = { navController.popBackStack() },
+                onEditClick = { id -> navController.navigate(Screen.Editor.createRoute(id)) }
             )
         }
         composable(

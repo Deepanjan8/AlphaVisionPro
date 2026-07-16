@@ -11,4 +11,5 @@ interface MediaRepository {
     fun observeTrash(): Flow<List<MediaItem>>
     suspend fun restoreFromTrash(id: Long): Result<Unit>
     suspend fun permanentlyDelete(id: Long): Result<Unit>
+    suspend fun sync(): Result<Unit>
 }

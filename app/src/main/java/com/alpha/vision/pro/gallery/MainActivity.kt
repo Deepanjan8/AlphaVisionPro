@@ -16,15 +16,25 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import javax.inject.Inject
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
 
+    @Inject
+    lateinit var mediaRepository: com.alpha.vision.pro.gallery.domain.repository.MediaRepository
+
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
-        // Permission result handled
+        if (isGranted) {
+            lifecycleScope.launch {
+                mediaRepository.sync()
+            }
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

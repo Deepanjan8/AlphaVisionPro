@@ -75,14 +75,25 @@ fun GalleryScreen(
                     style    = MaterialTheme.typography.bodyMedium,
                     color    = MaterialTheme.colorScheme.error
                 )
-                else -> GalleryGrid(
-                    items       = state.mediaItems,
-                    selectedIds = state.selectedIds,
-                    columns     = state.gridColumns,
-                    onItemClick = { id ->
-                        if (state.isSelectionMode) viewModel.onEvent(GalleryEvent.TapItem(id))
-                        else onMediaClick(id)
-                    },
+                else -> {
+                    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+                    val screenWidthDp = configuration.screenWidthDp
+                    val adaptiveColumns = remember(screenWidthDp, state.gridColumns) {
+                        val base = when {
+                            screenWidthDp >= 840 -> 5
+                            screenWidthDp >= 600 -> 4
+                            else                 -> 3
+                        }
+                        (base + (state.gridColumns - 3)).coerceIn(2, 8)
+                    }
+                    GalleryGrid(
+                        items       = state.mediaItems,
+                        selectedIds = state.selectedIds,
+                        columns     = adaptiveColumns,
+                        onItemClick = { id ->
+                            if (state.isSelectionMode) viewModel.onEvent(GalleryEvent.TapItem(id))
+                            else onMediaClick(id)
+                        },
                     onItemLongPress = { id -> viewModel.onEvent(GalleryEvent.LongPressItem(id)) },
                     onPinchZoom     = { scale -> viewModel.onEvent(GalleryEvent.PinchZoom(scale)) },
                     onStripExif     = { id -> viewModel.onEvent(GalleryEvent.StripExif(id)) }
