@@ -537,7 +537,7 @@ fn get_tiff_data(bytes: &[u8]) -> Option<&[u8]> {
     find_png_exif(bytes)
 }
 
-fn get_value_bytes<'a>(tiff: &'a [u8], entry: &[u8], endian: Endian) -> Option<&'a [u8]> {
+fn get_value_bytes<'a>(tiff: &'a [u8], entry: &'a [u8], endian: Endian) -> Option<&'a [u8]> {
     if entry.len() < 12 {
         return None;
     }
