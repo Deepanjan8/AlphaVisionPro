@@ -11,6 +11,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import okio.FileSystem
+import okio.Path.Companion.toPath
 import javax.inject.Singleton
 
 @Module
@@ -29,7 +30,7 @@ object AppModule {
             }
             .diskCache {
                 DiskCache.Builder()
-                    .directory(context.cacheDir.resolve("image_cache"))
+                    .directory(context.cacheDir.resolve("image_cache").absolutePath.toPath())
                     .maxSizePercent(0.02)
                     .fileSystem(FileSystem.SYSTEM)
                     .build()
