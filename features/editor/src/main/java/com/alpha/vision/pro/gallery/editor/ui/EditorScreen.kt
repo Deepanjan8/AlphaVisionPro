@@ -100,7 +100,7 @@ fun EditorScreen(
                         modifier         = Modifier.fillMaxSize()
                     )
                 }
-                AnimatedVisibility(
+                androidx.compose.animation.AnimatedVisibility(
                     visible  = state.isProcessing,
                     modifier = Modifier.align(Alignment.Center)
                 ) {
